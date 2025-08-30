@@ -190,23 +190,52 @@ cd frontend
 npm run test
 ```
 
-## 🔒 Security Considerations
+## 🔒 Security Framework
 
-1. **Container Security**
-   - Code runs in isolated Docker containers
-   - No network access from execution environment
-   - Resource limits prevent resource exhaustion
-   - Non-root user execution
+### **Multi-Layer Security Architecture**
 
-2. **Input Validation**
-   - Code length limits (10KB max)
-   - Request rate limiting
-   - SQL injection prevention via ORM
+#### **1. Code Validation & Analysis**
+- **AST Analysis**: Parse and analyze Python code structure
+- **Module Blacklisting**: Block dangerous imports (os, sys, subprocess, socket, etc.)
+- **Function Restrictions**: Prevent use of eval(), exec(), open(), input()
+- **Complexity Limits**: Restrict code complexity to prevent resource exhaustion
+- **Pattern Detection**: Regex-based detection of malicious patterns
 
-3. **Error Handling**
-   - Sanitized error messages
-   - No internal system details exposed
-   - Comprehensive logging for monitoring
+#### **2. Container Isolation**
+- **Secure Execution Image**: Hardened container with minimal attack surface
+- **Non-root User**: Code runs as unprivileged 'coderunner' user
+- **Read-only Filesystem**: Prevents file system modifications
+- **Network Isolation**: No external network access
+- **Capability Dropping**: Remove all Linux capabilities
+- **Resource Limits**: 512MB RAM, 50% CPU quota, 30-second timeout
+
+#### **3. Input Validation**
+- **Code Length**: Maximum 10KB per submission
+- **Line Limits**: Maximum 100 lines of code
+- **Syntax Validation**: Ensure valid Python syntax
+- **Import Restrictions**: Only allow whitelisted modules
+- **Rate Limiting**: 10 requests per minute per IP
+
+#### **4. Error Handling & Information Disclosure Prevention**
+- **Error Sanitization**: Remove file paths and system information
+- **Message Truncation**: Limit error message length
+- **Container ID Masking**: Hide Docker container identifiers
+- **Path Obfuscation**: Replace system paths with generic placeholders
+
+#### **5. Allowed Operations**
+**Safe Modules Only:**
+- **Data Science**: pandas, numpy, scipy
+- **Standard Library**: math, statistics, random, datetime, json, csv
+- **Utilities**: re, collections, itertools, functools, operator
+
+**Blocked Operations:**
+- File system access (open, file operations)
+- Network operations (socket, urllib, requests)
+- System calls (os, sys, subprocess)
+- Code execution (eval, exec, compile)
+- Import manipulation (__import__, importlib)
+- Serialization (pickle, marshal)
+- Multi-processing/threading
 
 ## 🚀 Deployment
 
