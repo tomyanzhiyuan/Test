@@ -10,7 +10,7 @@ This is a secure code execution platform built with React (Vite) + TypeScript + 
 - **Backend**: FastAPI with Python 3.12+ (latest stable)
 - **Database**: PostgreSQL 16+ with SQLAlchemy 2.0+
 - **Code Editor**: Monaco Editor for syntax highlighting
-- **Security**: Docker containers for isolated code execution
+- **Security**: AWS Lambda for isolated code execution with Docker fallback
 - **Package Management**: npm/pnpm for frontend, Poetry for Python backend
 
 ## Code Style & Formatting

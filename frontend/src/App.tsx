@@ -1,6 +1,6 @@
-import { Toaster } from 'react-hot-toast'
-import CodeEditor from './components/CodeEditor'
-import './App.css'
+import { Toaster } from "react-hot-toast";
+import CodeEditor from "./components/CodeEditor";
+import "./App.css";
 
 function App() {
   return (
@@ -20,7 +20,7 @@ function App() {
         </main>
       </div>
     </div>
-  )
+  );
 }
 
-export default App
+export default App;

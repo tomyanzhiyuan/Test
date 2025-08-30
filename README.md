@@ -4,7 +4,7 @@ A secure, full-stack web application for executing Python code in isolated Docke
 
 ## 🚀 Features
 
-- **Secure Code Execution**: Python code runs in isolated Docker containers with resource limits
+- **Secure Code Execution**: Python code runs in AWS Lambda with comprehensive security validation
 - **Modern UI**: Clean, responsive interface with Monaco Editor for syntax highlighting
 - **Real-time Feedback**: Instant code execution results with error handling
 - **Database Persistence**: Successful code submissions are saved to PostgreSQL
@@ -29,12 +29,12 @@ A secure, full-stack web application for executing Python code in isolated Docke
 - **Rate Limiting**: slowapi for API protection
 
 ### Security Features
-- **Container Isolation**: Each code execution runs in a separate Docker container
-- **Resource Limits**: 512MB RAM, 30-second timeout
-- **Network Isolation**: No external network access from execution environment
-- **Non-root Execution**: Code runs as unprivileged user
-- **Input Validation**: Code length limits and sanitization
-- **Read-only Filesystem**: Prevents file system modifications
+- **AWS Lambda Isolation**: Code execution in secure, isolated AWS Lambda environment
+- **Comprehensive Code Validation**: AST parsing and security analysis before execution
+- **Resource Limits**: 30-second timeout, memory limits enforced by Lambda
+- **Network Isolation**: Lambda provides secure sandboxed execution
+- **Input Validation**: Code length limits, complexity analysis, and sanitization
+- **Module Restrictions**: Only whitelisted libraries (pandas, scipy, numpy) allowed
 
 ## 📋 Prerequisites
 
@@ -53,13 +53,22 @@ A secure, full-stack web application for executing Python code in isolated Docke
    cd code-execution-website
    ```
 
-2. **Build and start all services**
+2. **Set up AWS Lambda credentials**
+   ```bash
+   # Copy the example file and add your AWS credentials
+   cp docker/.env.example docker/.env
+   # Edit docker/.env with your AWS credentials:
+   # AWS_ACCESS_KEY_ID=your-access-key-id
+   # AWS_SECRET_ACCESS_KEY=your-secret-access-key
+   ```
+
+3. **Build and start all services**
    ```bash
    cd docker
    docker-compose up --build
    ```
 
-3. **Access the application**
+4. **Access the application**
    - Frontend: http://localhost:3000
    - Backend API: http://localhost:8000
    - API Documentation: http://localhost:8000/docs

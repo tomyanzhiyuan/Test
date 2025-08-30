@@ -10,7 +10,7 @@
 .output-container {
   background-color: #1f2937;
   color: #f9fafb;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
   border-radius: 8px;
   padding: 1rem;
   white-space: pre-wrap;
@@ -38,6 +38,10 @@
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
