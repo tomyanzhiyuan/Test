@@ -89,6 +89,12 @@ class CodeValidator:
             (r'ctypes\.|multiprocessing\.', "Low-level system access is not allowed"),
             (r'__.*__\s*=', "Dunder attribute modification is not allowed"),
             (r'globals\(\)|locals\(\)', "Access to global/local scope is not allowed"),
+            (r'getattr\s*\(\s*__builtins__', "Access to __builtins__ via getattr is not allowed"),
+            (r'__builtins__\s*\[', "Direct access to __builtins__ is not allowed"),
+            (r'vars\s*\(\s*__builtins__', "Access to __builtins__ via vars is not allowed"),
+            (r'while\s+True\s*:', "Infinite loops are not allowed"),
+            (r'while\s+1\s*:', "Infinite loops are not allowed"),
+            (r'while\s+not\s+False\s*:', "Infinite loops are not allowed"),
         ]
 
         for pattern, message in dangerous_patterns:
