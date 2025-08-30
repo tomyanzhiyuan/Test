@@ -137,11 +137,13 @@ class CodeValidator:
 
     def sanitize_code(self, code: str) -> str:
         """Sanitize code by removing comments and normalizing whitespace."""
-        # Remove comments but preserve string literals
+        # For security, we'll be more aggressive and remove ALL comments
+        # This prevents any comment-based bypass attempts
         lines = []
         for line in code.split('\n'):
-            # Simple comment removal (doesn't handle strings with # properly)
-            if '#' in line and not ('"' in line or "'" in line):
+            # Remove everything after # character (aggressive approach)
+            # This may break some valid code with # in strings, but prioritizes security
+            if '#' in line:
                 line = line[:line.index('#')]
             lines.append(line.rstrip())
         
