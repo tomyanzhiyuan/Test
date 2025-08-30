@@ -49,7 +49,7 @@ A secure, full-stack web application for executing Python code in isolated Docke
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
+   git clone git@github.com:tomyanzhiyuan/Test.git
    cd code-execution-website
    ```
 
@@ -88,6 +88,8 @@ A secure, full-stack web application for executing Python code in isolated Docke
    cp .env.example .env
    # Edit .env with your database credentials
    ```
+   
+   **Note**: The .env files have been created from the templates. You can modify them as needed for your environment.
 
 5. **Start PostgreSQL** (using Docker)
    ```bash
