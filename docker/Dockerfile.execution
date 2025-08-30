@@ -1,17 +1,39 @@
-# Dockerfile for secure Python code execution
+# Secure Python execution environment
 FROM python:3.12-slim
 
 # Install required packages
 RUN pip install --no-cache-dir pandas scipy numpy
 
-# Create non-root user
-RUN useradd -r -s /bin/false coderunner
+# Create non-root user with minimal privileges
+RUN useradd -r -s /bin/false -d /tmp coderunner
+
+# Remove potentially dangerous binaries and create secure environment
+RUN apt-get update && \
+    apt-get remove -y --purge \
+        curl wget netcat-traditional netcat-openbsd \
+        ssh openssh-client openssh-server \
+        git subversion mercurial \
+        gcc g++ make build-essential && \
+    apt-get autoremove -y && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
+    # Remove network tools and compilers
+    rm -f /usr/bin/nc /usr/bin/ncat /usr/bin/socat && \
+    # Create secure tmp directory
+    mkdir -p /secure_tmp && \
+    chown coderunner:coderunner /secure_tmp && \
+    chmod 700 /secure_tmp
 
 # Set working directory
-WORKDIR /app
+WORKDIR /secure_tmp
 
 # Switch to non-root user
 USER coderunner
 
+# Set secure environment variables
+ENV PYTHONPATH=""
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
 # Default command
-CMD ["python"]
+CMD ["python3"]

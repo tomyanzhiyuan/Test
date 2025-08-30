@@ -14,6 +14,7 @@ from app.schemas.submission import (
     SubmissionResponse,
 )
 from app.services.code_execution import CodeExecutionService
+from app.services.code_validator import CodeValidator
 from app.services.submission import SubmissionService
 
 router = APIRouter()

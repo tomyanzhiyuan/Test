@@ -53,10 +53,20 @@ class Settings(BaseSettings):
 
     # Code execution settings
     DOCKER_IMAGE: str = "python:3.12-slim"
+    EXECUTION_IMAGE: str = "code-execution:latest"
     EXECUTION_TIMEOUT: int = 30  # seconds
     MEMORY_LIMIT: str = "512m"
+    CPU_LIMIT: int = 50000  # 50% CPU quota
     MAX_CODE_LENGTH: int = 10000  # characters
+    MAX_CODE_LINES: int = 100  # maximum lines of code
+    MAX_COMPLEXITY: int = 20  # maximum code complexity score
     RATE_LIMIT: str = "10/minute"
+    
+    # Security settings
+    ENABLE_CODE_VALIDATION: bool = True
+    ENABLE_CONTAINER_ISOLATION: bool = True
+    CONTAINER_NETWORK_DISABLED: bool = True
+    CONTAINER_READ_ONLY: bool = True
 
     # Environment
     ENVIRONMENT: str = "development"
