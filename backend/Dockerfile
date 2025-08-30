@@ -26,6 +26,9 @@ RUN poetry config virtualenvs.create false
 # Install dependencies
 RUN poetry install --only=main --no-root
 
+# Install Python packages for code execution
+RUN pip install pandas scipy numpy
+
 # Copy project
 COPY . .
 
