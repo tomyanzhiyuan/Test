@@ -1,11 +1,10 @@
-"""Code execution service with Docker isolation."""
+"""Code execution service with subprocess isolation."""
 
-import asyncio
+import subprocess
+import tempfile
 import time
+import os
 from typing import Optional
-
-import docker
-from docker.errors import ContainerError, ImageNotFound
 
 from app.core.config import settings
 from app.models.submission import SubmissionStatus
@@ -13,17 +12,14 @@ from app.schemas.submission import CodeExecutionResponse
 
 
 class CodeExecutionService:
-    """Service for executing Python code in isolated Docker containers."""
+    """Service for executing Python code using subprocess."""
 
     def __init__(self) -> None:
         """Initialize the code execution service."""
-        self.client = docker.from_env()
-        self.docker_image = settings.DOCKER_IMAGE
         self.timeout = settings.EXECUTION_TIMEOUT
-        self.memory_limit = settings.MEMORY_LIMIT
 
     async def execute_code(self, code: str) -> CodeExecutionResponse:
-        """Execute Python code in a secure Docker container."""
+        """Execute Python code using subprocess."""
         start_time = time.time()
         
         try:
@@ -52,8 +48,8 @@ except Exception as e:
     sys.exit(1)
 """
 
-            # Run code in Docker container
-            result = await self._run_in_container(script)
+            # Run code using subprocess
+            result = await self._run_with_subprocess(script)
             execution_time = time.time() - start_time
 
             return CodeExecutionResponse(
@@ -78,15 +74,9 @@ except Exception as e:
         indented_lines = ['    ' + line for line in lines]
         return '\n'.join(indented_lines)
 
-    async def _run_in_container(self, script: str) -> dict[str, Optional[str]]:
-        """Run script in Docker container with security restrictions."""
+    async def _run_with_subprocess(self, script: str) -> dict[str, Optional[str]]:
+        """Run script using subprocess with security restrictions."""
         try:
-            # For now, simulate code execution without Docker
-            # This is a temporary solution until Docker-in-Docker is properly configured
-            import subprocess
-            import tempfile
-            import os
-            
             # Create a temporary file with the script
             with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
                 f.write(script)
@@ -121,61 +111,15 @@ except Exception as e:
                 except:
                     pass
 
-            # Wait for container with timeout
-            try:
-                exit_code = container.wait(timeout=self.timeout)["StatusCode"]
-                logs = container.logs(stdout=True, stderr=True).decode("utf-8")
-                
-                if exit_code == 0:
-                    return {
-                        "output": logs.strip() if logs.strip() else None,
-                        "error": None,
-                        "status": SubmissionStatus.SUCCESS,
-                    }
-                else:
-                    return {
-                        "output": None,
-                        "error": logs.strip() if logs.strip() else "Unknown error occurred",
-                        "status": SubmissionStatus.ERROR,
-                    }
-
-            except Exception as e:
-                # Handle timeout or other container errors
-                try:
-                    container.kill()
-                except:
-                    pass
-                
-                if "timeout" in str(e).lower():
-                    return {
-                        "output": None,
-                        "error": f"Code execution timed out after {self.timeout} seconds",
-                        "status": SubmissionStatus.TIMEOUT,
-                    }
-                else:
-                    return {
-                        "output": None,
-                        "error": f"Container execution error: {str(e)}",
-                        "status": SubmissionStatus.ERROR,
-                    }
-
-        except ContainerError as e:
+        except subprocess.TimeoutExpired:
             return {
                 "output": None,
-                "error": f"Container error: {str(e)}",
-                "status": SubmissionStatus.ERROR,
+                "error": f"Code execution timed out after {self.timeout} seconds",
+                "status": SubmissionStatus.TIMEOUT,
             }
         except Exception as e:
             return {
                 "output": None,
-                "error": f"Docker execution error: {str(e)}",
+                "error": f"Execution error: {str(e)}",
                 "status": SubmissionStatus.ERROR,
             }
-
-    def __del__(self) -> None:
-        """Clean up Docker client."""
-        try:
-            if hasattr(self, 'client'):
-                self.client.close()
-        except:
-            pass
