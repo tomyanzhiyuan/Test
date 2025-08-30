@@ -1,4 +1,3 @@
-import React from 'react'
 import { Toaster } from 'react-hot-toast'
 import CodeEditor from './components/CodeEditor'
 import './App.css'
