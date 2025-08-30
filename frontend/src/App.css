@@ -1,0 +1,43 @@
+.app {
+  text-align: center;
+}
+
+.monaco-editor {
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+.output-container {
+  background-color: #1f2937;
+  color: #f9fafb;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  border-radius: 8px;
+  padding: 1rem;
+  white-space: pre-wrap;
+  text-align: left;
+  min-height: 100px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.error-output {
+  color: #fca5a5;
+}
+
+.success-output {
+  color: #86efac;
+}
+
+.loading-spinner {
+  border: 2px solid #f3f4f6;
+  border-top: 2px solid #3b82f6;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}

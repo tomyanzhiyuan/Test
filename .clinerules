@@ -1,0 +1,74 @@
+# Code Execution Website - Development Rules
+
+## Project Overview
+This is a secure code execution platform built with React (Vite) + TypeScript + Tailwind CSS frontend and FastAPI + Python backend, using PostgreSQL database and Docker for secure code execution.
+
+## Technology Stack Requirements
+- **Frontend**: React 18+ with Vite, TypeScript 5+, Tailwind CSS 3+
+- **Backend**: FastAPI with Python 3.12+ (latest stable)
+- **Database**: PostgreSQL 16+ with SQLAlchemy 2.0+
+- **Code Editor**: Monaco Editor for syntax highlighting
+- **Security**: Docker containers for isolated code execution
+- **Package Management**: npm/pnpm for frontend, Poetry for Python backend
+
+## Code Style & Formatting
+- **Python**: Use Black formatter with line length 88, isort for imports
+- **TypeScript/JavaScript**: Use Prettier with 2-space indentation
+- **File naming**: kebab-case for files, PascalCase for React components
+- **Import organization**: Group imports (external, internal, relative)
+
+## Architecture Patterns
+- **Frontend**: 
+  - Functional components with hooks
+  - Custom hooks for API calls and state management
+  - Separate API service layer
+  - Component composition over inheritance
+- **Backend**:
+  - FastAPI with dependency injection
+  - Repository pattern for database operations
+  - Service layer for business logic
+  - Pydantic models for request/response validation
+
+## Security Requirements
+- **Code Execution**: All user code must run in isolated Docker containers
+- **Resource Limits**: 512MB RAM, 30-second timeout, no network access
+- **Input Validation**: Sanitize and validate all user inputs
+- **Error Handling**: Never expose internal system details in error messages
+- **Rate Limiting**: Implement request rate limiting on API endpoints
+
+## Database Standards
+- **Models**: Use SQLAlchemy 2.0 syntax with type hints
+- **Migrations**: Use Alembic for database migrations
+- **Naming**: snake_case for table/column names
+- **UUIDs**: Use UUID primary keys for security
+- **Indexes**: Add indexes on frequently queried columns
+
+## Testing Requirements
+- **Backend**: pytest with >80% coverage, test security measures
+- **Frontend**: Vitest for unit tests, Playwright for E2E tests
+- **API Testing**: Test all endpoints with various input scenarios
+- **Security Testing**: Test container isolation and resource limits
+
+## Documentation Standards
+- **Code Comments**: Document complex business logic and security measures
+- **API Documentation**: Auto-generated OpenAPI docs with examples
+- **README**: Include setup instructions, security notes, and deployment guide
+- **Type Hints**: Use comprehensive type hints in both Python and TypeScript
+
+## Error Handling Patterns
+- **Frontend**: Centralized error handling with user-friendly messages
+- **Backend**: Structured error responses with appropriate HTTP status codes
+- **Logging**: Comprehensive logging for debugging and security monitoring
+- **Validation**: Client-side and server-side validation with clear error messages
+
+## Performance Guidelines
+- **Frontend**: Code splitting, lazy loading, optimized bundle size
+- **Backend**: Async/await patterns, database query optimization
+- **Caching**: Implement appropriate caching strategies
+- **Resource Management**: Proper cleanup of Docker containers and database connections
+
+## Development Workflow
+- **Git**: Use conventional commits, feature branches
+- **Environment**: Separate configs for development, testing, production
+- **Docker**: Use multi-stage builds, optimize image sizes
+- **Dependencies**: Keep dependencies updated, use lock files
