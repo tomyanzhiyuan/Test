@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 
 from app.models.submission import SubmissionStatus
 
@@ -19,7 +19,8 @@ class CodeExecutionRequest(BaseModel):
         description="Python code to execute",
     )
 
-    @validator("code")
+    @field_validator("code")
+    @classmethod
     def validate_code(cls, v: str) -> str:
         """Validate code input."""
         if not v.strip():
@@ -46,7 +47,8 @@ class SubmissionCreate(BaseModel):
         description="Python code to submit",
     )
 
-    @validator("code")
+    @field_validator("code")
+    @classmethod
     def validate_code(cls, v: str) -> str:
         """Validate code input."""
         if not v.strip():
