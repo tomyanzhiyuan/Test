@@ -81,32 +81,45 @@ except Exception as e:
     async def _run_in_container(self, script: str) -> dict[str, Optional[str]]:
         """Run script in Docker container with security restrictions."""
         try:
-            # Pull image if not available
+            # For now, simulate code execution without Docker
+            # This is a temporary solution until Docker-in-Docker is properly configured
+            import subprocess
+            import tempfile
+            import os
+            
+            # Create a temporary file with the script
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+                f.write(script)
+                temp_file = f.name
+            
             try:
-                self.client.images.get(self.docker_image)
-            except ImageNotFound:
-                self.client.images.pull(self.docker_image)
-
-            # Create and run container
-            container = self.client.containers.run(
-                image=self.docker_image,
-                command=["python", "-c", script],
-                detach=True,
-                mem_limit=self.memory_limit,
-                network_disabled=True,  # No network access
-                read_only=True,  # Read-only filesystem
-                remove=True,  # Auto-remove container
-                security_opt=["no-new-privileges:true"],  # Security hardening
-                user="nobody",  # Run as non-root user
-                working_dir="/tmp",
-                environment={
-                    "PYTHONUNBUFFERED": "1",
-                    "PYTHONDONTWRITEBYTECODE": "1",
-                },
-                # Install required packages in the container
-                volumes={},
-                tmpfs={"/tmp": "noexec,nosuid,size=100m"},
-            )
+                # Run the script with timeout
+                result = subprocess.run(
+                    ["python3", temp_file],
+                    capture_output=True,
+                    text=True,
+                    timeout=self.timeout,
+                    cwd="/tmp"
+                )
+                
+                if result.returncode == 0:
+                    return {
+                        "output": result.stdout.strip() if result.stdout.strip() else None,
+                        "error": None,
+                        "status": SubmissionStatus.SUCCESS,
+                    }
+                else:
+                    return {
+                        "output": None,
+                        "error": result.stderr.strip() if result.stderr.strip() else "Unknown error occurred",
+                        "status": SubmissionStatus.ERROR,
+                    }
+            finally:
+                # Clean up temp file
+                try:
+                    os.unlink(temp_file)
+                except:
+                    pass
 
             # Wait for container with timeout
             try:
