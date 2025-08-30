@@ -20,7 +20,19 @@ class CodeExecutionService:
 
     def __init__(self) -> None:
         """Initialize the code execution service."""
-        self.client = docker.from_env()
+        # Configure Docker client with correct socket path
+        try:
+            self.client = docker.DockerClient(base_url='unix:///var/run/docker.sock')
+        except Exception as e:
+            # Try alternative configurations
+            try:
+                self.client = docker.from_env()
+            except Exception:
+                # Last resort - direct socket access
+                import os
+                os.environ['DOCKER_HOST'] = 'unix:///var/run/docker.sock'
+                self.client = docker.from_env()
+        
         self.execution_image = "code-execution:latest"
         self.timeout = settings.EXECUTION_TIMEOUT
         self.memory_limit = settings.MEMORY_LIMIT
