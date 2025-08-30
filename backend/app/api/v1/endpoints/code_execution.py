@@ -1,5 +1,6 @@
 """Code execution endpoints."""
 
+from typing import Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Request
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -14,6 +15,7 @@ from app.schemas.submission import (
     SubmissionResponse,
 )
 from app.services.code_execution import CodeExecutionService
+from app.services.lambda_execution import LambdaExecutionService
 from app.services.code_validator import CodeValidator
 from app.services.submission import SubmissionService
 
@@ -34,7 +36,12 @@ async def execute_code(
 ) -> CodeExecutionResponse:
     """Execute Python code without persisting to database."""
     try:
-        execution_service = CodeExecutionService()
+        # Choose execution service based on configuration
+        if settings.USE_LAMBDA_EXECUTION:
+            execution_service = LambdaExecutionService()
+        else:
+            execution_service = CodeExecutionService()
+        
         result = await execution_service.execute_code(code_request.code)
         return result
     except Exception as e:
@@ -59,7 +66,11 @@ async def submit_code(
     """Execute Python code and save submission to database."""
     try:
         # First execute the code
-        execution_service = CodeExecutionService()
+        if settings.USE_LAMBDA_EXECUTION:
+            execution_service = LambdaExecutionService()
+        else:
+            execution_service = CodeExecutionService()
+        
         execution_result = await execution_service.execute_code(submission_request.code)
         
         # Only persist if execution was successful

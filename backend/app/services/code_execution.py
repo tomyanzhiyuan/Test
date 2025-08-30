@@ -4,7 +4,7 @@ import asyncio
 import re
 import time
 import uuid
-from typing import Optional
+from typing import Optional, Dict, Any
 
 import docker
 from docker.errors import ContainerError, ImageNotFound, APIError
@@ -20,27 +20,126 @@ class CodeExecutionService:
 
     def __init__(self) -> None:
         """Initialize the code execution service."""
-        # Configure Docker client with correct socket path
-        try:
-            self.client = docker.DockerClient(base_url='unix:///var/run/docker.sock')
-        except Exception as e:
-            # Try alternative configurations
-            try:
-                self.client = docker.from_env()
-            except Exception:
-                # Last resort - direct socket access
-                import os
-                os.environ['DOCKER_HOST'] = 'unix:///var/run/docker.sock'
-                self.client = docker.from_env()
+        # Configure Docker client with proper connection handling
+        self.client = None
+        self.docker_available = False
+        self.docker_error_message = None
+        self._initialize_docker_client()
         
         self.execution_image = "code-execution:latest"
         self.timeout = settings.EXECUTION_TIMEOUT
         self.memory_limit = settings.MEMORY_LIMIT
         self.validator = CodeValidator()
 
+    def _initialize_docker_client(self) -> None:
+        """Initialize Docker client with comprehensive error handling."""
+        import os
+        
+        # Clear any problematic environment variables first
+        if 'DOCKER_HOST' in os.environ:
+            del os.environ['DOCKER_HOST']
+        
+        # Try different Docker connection methods with proper URL handling
+        connection_methods = [
+            # Method 1: Direct socket connection with explicit API client
+            ("Direct socket API", lambda: self._create_direct_socket_client()),
+            # Method 2: Unix socket with explicit base_url
+            ("Unix socket", lambda: docker.DockerClient(base_url='unix:///var/run/docker.sock')),
+            # Method 3: TCP connection (for Docker Desktop on macOS/Windows)
+            ("TCP localhost:2375", lambda: docker.DockerClient(base_url='tcp://localhost:2375')),
+            # Method 4: Docker Desktop default
+            ("TCP localhost:2376", lambda: docker.DockerClient(base_url='tcp://localhost:2376', tls=False)),
+        ]
+        
+        for method_name, method in connection_methods:
+            try:
+                client = method()
+                # Test the connection
+                client.ping()
+                self.client = client
+                self.docker_available = True
+                print(f"✅ Docker client initialized successfully using {method_name}")
+                return
+            except Exception as e:
+                print(f"❌ Docker connection via {method_name} failed: {e}")
+                continue
+        
+        # If all methods fail, set detailed error message
+        self.docker_available = False
+        self.docker_error_message = self._generate_docker_error_message()
+        print(f"🚨 Docker unavailable: {self.docker_error_message}")
+
+    def _create_direct_socket_client(self):
+        """Create Docker client with direct socket access."""
+        import docker.api
+        import docker.client
+        
+        # Create API client directly with socket
+        api_client = docker.api.APIClient(base_url='unix:///var/run/docker.sock')
+        
+        # Create high-level client using the API client
+        return docker.client.DockerClient(api=api_client)
+
+    def _generate_docker_error_message(self) -> str:
+        """Generate a helpful error message for Docker connection failures."""
+        return (
+            "Docker service is not available. Please ensure:\n"
+            "1. Docker is installed and running\n"
+            "2. Docker daemon is accessible (check 'docker ps' in terminal)\n"
+            "3. Current user has Docker permissions\n"
+            "4. Docker socket is accessible at /var/run/docker.sock\n"
+            "Code execution requires Docker for security isolation."
+        )
+
+    def get_service_health(self) -> Dict[str, Any]:
+        """Get the health status of the code execution service."""
+        if not self.docker_available:
+            return {
+                "status": "unhealthy",
+                "docker_available": False,
+                "error": self.docker_error_message,
+                "execution_available": False
+            }
+        
+        try:
+            # Test Docker connection
+            self.client.ping()
+            
+            # Check if execution image exists
+            image_available = False
+            try:
+                self.client.images.get(self.execution_image)
+                image_available = True
+            except ImageNotFound:
+                pass
+            
+            return {
+                "status": "healthy" if image_available else "degraded",
+                "docker_available": True,
+                "execution_image_available": image_available,
+                "execution_available": True,
+                "image_name": self.execution_image
+            }
+        except Exception as e:
+            return {
+                "status": "unhealthy",
+                "docker_available": False,
+                "error": f"Docker connection lost: {str(e)}",
+                "execution_available": False
+            }
+
     async def execute_code(self, code: str) -> CodeExecutionResponse:
         """Execute Python code in a secure Docker container."""
         start_time = time.time()
+        
+        # Check if Docker is available
+        if not self.docker_available:
+            return CodeExecutionResponse(
+                output=None,
+                error=f"Code execution service unavailable: {self.docker_error_message}",
+                status=SubmissionStatus.ERROR,
+                execution_time=0.0,
+            )
         
         try:
             # Pre-execution validation
@@ -111,119 +210,86 @@ except Exception as e:
         indented_lines = ['    ' + line for line in lines]
         return '\n'.join(indented_lines)
 
-    async def _run_in_secure_container(self, script: str) -> dict[str, Optional[str]]:
+    async def _run_in_secure_container(self, script: str) -> Dict[str, Optional[str]]:
         """Run script in a secure Docker container with comprehensive restrictions."""
         container = None
+        
+        # Double-check Docker availability
+        if not self.docker_available or self.client is None:
+            return {
+                "output": None,
+                "error": "Docker service is not available for secure code execution",
+                "status": SubmissionStatus.ERROR,
+            }
+        
         try:
-            # Try Docker container execution first
-            try:
-                # Ensure execution image exists
-                await self._ensure_execution_image()
+            # Ensure execution image exists
+            await self._ensure_execution_image()
 
-                # Generate unique container name
-                container_name = f"code-exec-{uuid.uuid4().hex[:8]}"
+            # Generate unique container name
+            container_name = f"code-exec-{uuid.uuid4().hex[:8]}"
 
-                # Create and run container with maximum security
-                container = self.client.containers.run(
-                    image=self.execution_image,
-                    command=["python3", "-c", script],
-                    detach=True,
-                    name=container_name,
-                    # Resource limits
-                    mem_limit=self.memory_limit,
-                    memswap_limit=self.memory_limit,  # Disable swap
-                    cpu_quota=50000,  # 50% CPU limit
-                    cpu_period=100000,
-                    # Security restrictions
-                    network_disabled=True,  # No network access
-                    read_only=True,  # Read-only root filesystem
-                    user="coderunner",  # Non-root user
-                    # Security options
-                    security_opt=[
-                        "no-new-privileges:true",
-                        "seccomp=unconfined"  # Could be more restrictive
-                    ],
-                    # Capabilities
-                    cap_drop=["ALL"],  # Drop all capabilities
-                    # Filesystem restrictions
-                    tmpfs={
-                        "/secure_tmp": "noexec,nosuid,nodev,size=50m",
-                        "/tmp": "noexec,nosuid,nodev,size=10m"
-                    },
-                    # Environment restrictions
-                    environment={
-                        "PYTHONPATH": "",
-                        "PYTHONDONTWRITEBYTECODE": "1",
-                        "PYTHONUNBUFFERED": "1",
-                        "HOME": "/secure_tmp"
-                    },
-                    # Auto-cleanup
-                    remove=True,
-                    # Working directory
-                    working_dir="/secure_tmp"
-                )
+            # Create and run container with maximum security
+            container = self.client.containers.run(
+                image=self.execution_image,
+                command=["python3", "-c", script],
+                detach=True,
+                name=container_name,
+                # Resource limits
+                mem_limit=self.memory_limit,
+                memswap_limit=self.memory_limit,  # Disable swap
+                cpu_quota=50000,  # 50% CPU limit
+                cpu_period=100000,
+                # Security restrictions
+                network_disabled=True,  # No network access
+                read_only=True,  # Read-only root filesystem
+                user="coderunner",  # Non-root user
+                # Security options
+                security_opt=[
+                    "no-new-privileges:true",
+                    "seccomp=unconfined"  # Could be more restrictive
+                ],
+                # Capabilities
+                cap_drop=["ALL"],  # Drop all capabilities
+                # Filesystem restrictions
+                tmpfs={
+                    "/secure_tmp": "noexec,nosuid,nodev,size=50m",
+                    "/tmp": "noexec,nosuid,nodev,size=10m"
+                },
+                # Environment restrictions
+                environment={
+                    "PYTHONPATH": "",
+                    "PYTHONDONTWRITEBYTECODE": "1",
+                    "PYTHONUNBUFFERED": "1",
+                    "HOME": "/secure_tmp"
+                },
+                # Auto-cleanup
+                remove=True,
+                # Working directory
+                working_dir="/secure_tmp"
+            )
 
-                # Wait for container with timeout
-                result = container.wait(timeout=self.timeout)
-                exit_code = result["StatusCode"]
-                
-                # Get logs
-                logs = container.logs(stdout=True, stderr=True).decode("utf-8", errors="replace")
-                
-                if exit_code == 0:
-                    # Successful execution
-                    return {
-                        "output": logs.strip() if logs.strip() else None,
-                        "error": None,
-                        "status": SubmissionStatus.SUCCESS,
-                    }
-                else:
-                    # Execution error
-                    return {
-                        "output": None,
-                        "error": self._sanitize_error_message(logs.strip()) if logs.strip() else "Unknown error occurred",
-                        "status": SubmissionStatus.ERROR,
-                    }
-
-            except Exception as docker_error:
-                # Docker failed, fall back to subprocess with validation already applied
-                import subprocess
-                import tempfile
-                import os
-                
-                # Create a temporary file with the script
-                with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
-                    f.write(script)
-                    temp_file = f.name
-                
-                try:
-                    # Run the script with timeout
-                    result = subprocess.run(
-                        ["python3", temp_file],
-                        capture_output=True,
-                        text=True,
-                        timeout=self.timeout,
-                        cwd="/tmp"
-                    )
-                    
-                    if result.returncode == 0:
-                        return {
-                            "output": result.stdout.strip() if result.stdout.strip() else None,
-                            "error": None,
-                            "status": SubmissionStatus.SUCCESS,
-                        }
-                    else:
-                        return {
-                            "output": None,
-                            "error": self._sanitize_error_message(result.stderr.strip()) if result.stderr.strip() else "Unknown error occurred",
-                            "status": SubmissionStatus.ERROR,
-                        }
-                finally:
-                    # Clean up temp file
-                    try:
-                        os.unlink(temp_file)
-                    except:
-                        pass
+            # Wait for container with timeout
+            result = container.wait(timeout=self.timeout)
+            exit_code = result["StatusCode"]
+            
+            # Get logs
+            logs = container.logs(stdout=True, stderr=True).decode("utf-8", errors="replace")
+            
+            if exit_code == 0:
+                # Successful execution
+                return {
+                    "output": logs.strip() if logs.strip() else None,
+                    "error": None,
+                    "status": SubmissionStatus.SUCCESS,
+                }
+            else:
+                # Execution error
+                return {
+                    "output": None,
+                    "error": self._sanitize_error_message(logs.strip()) if logs.strip() else "Unknown error occurred",
+                    "status": SubmissionStatus.ERROR,
+                }
 
         except Exception as e:
             if "timeout" in str(e).lower():
@@ -232,10 +298,16 @@ except Exception as e:
                     "error": f"Code execution timed out after {self.timeout} seconds",
                     "status": SubmissionStatus.TIMEOUT,
                 }
+            elif "image" in str(e).lower() and "not found" in str(e).lower():
+                return {
+                    "output": None,
+                    "error": "Code execution environment is not properly configured. Please contact administrator.",
+                    "status": SubmissionStatus.ERROR,
+                }
             else:
                 return {
                     "output": None,
-                    "error": f"Execution error: {self._sanitize_error_message(str(e))}",
+                    "error": f"Docker execution error: {self._sanitize_error_message(str(e))}",
                     "status": SubmissionStatus.ERROR,
                 }
         finally:
@@ -248,11 +320,15 @@ except Exception as e:
 
     async def _ensure_execution_image(self) -> None:
         """Ensure the secure execution image exists."""
+        if not self.client:
+            raise Exception("Docker client not available")
+            
         try:
             self.client.images.get(self.execution_image)
         except ImageNotFound:
             # Build the execution image
             try:
+                print(f"Building execution image: {self.execution_image}")
                 self.client.images.build(
                     path="/app/../docker",
                     dockerfile="Dockerfile.execution",
@@ -260,6 +336,7 @@ except Exception as e:
                     rm=True,
                     forcerm=True
                 )
+                print(f"✅ Successfully built execution image: {self.execution_image}")
             except Exception as e:
                 raise Exception(f"Failed to build execution image: {str(e)}")
 
@@ -284,7 +361,7 @@ except Exception as e:
     def __del__(self) -> None:
         """Clean up Docker client."""
         try:
-            if hasattr(self, 'client'):
+            if hasattr(self, 'client') and self.client:
                 self.client.close()
         except:
             pass

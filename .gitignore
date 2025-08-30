@@ -308,3 +308,7 @@ build/
 # OS
 .DS_Store
 Thumbs.db
+
+# AWS credential files
+*AWS*.csv
+Tom_AWS_*.csv

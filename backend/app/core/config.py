@@ -62,6 +62,13 @@ class Settings(BaseSettings):
     MAX_COMPLEXITY: int = 20  # maximum code complexity score
     RATE_LIMIT: str = "10/minute"
     
+    # AWS Lambda settings
+    AWS_ACCESS_KEY_ID: Optional[str] = None
+    AWS_SECRET_ACCESS_KEY: Optional[str] = None
+    AWS_REGION: str = "us-east-2"
+    LAMBDA_FUNCTION_NAME: str = "code-execution-python"
+    USE_LAMBDA_EXECUTION: bool = True  # Toggle between Docker and Lambda
+    
     # Security settings
     ENABLE_CODE_VALIDATION: bool = True
     ENABLE_CONTAINER_ISOLATION: bool = True
