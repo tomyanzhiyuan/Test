@@ -1,0 +1,6 @@
+# Security Testing Dependencies
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+httpx>=0.25.0
+requests>=2.31.0
+faker>=19.0.0
